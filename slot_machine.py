@@ -172,12 +172,13 @@ class BestPlay:
         
 
 if st.button('执行我的策略'):
+    bar = st.progress(0)
     ph = st.empty()
     header = ['随机策略', '我的策略', '最优答案', '得分']
     result = pd.DataFrame(columns=header)
     ph.table(result)
     for i in range(10):
-        print(f'进行第{i+1}次测试')
+        bar.progress(i*10)
         casino = Casino(TOTAL_PlAY)
         play_random = RandomPlay(casino, TOTAL_PlAY)
         play2 = MyPlay(casino, TOTAL_PlAY)
@@ -201,18 +202,19 @@ if st.button('执行我的策略'):
         rewards = pd.Series([reward1, reward2, reward3, score], index=header)
         result = result.append(rewards, ignore_index=True)
         ph.table(result)
+    bar.progress(100)
     average = result.mean()
-    st.info('平均得分')
+    st.success('平均得分')
     st.table(average)
 
     if average['我的策略'] > average['最优答案']:
         st.balloons()
         st.text(f'老虎机的回报：{casino.sample} ...')
         with open('sample.md', 'a') as f:
-            f.write(f'# New record')
-            f.write(casino.sample)
-            f.write(f'my reward: {reward2}, best reward: {reward3}')
-            f.write('```')
+            f.write(f'# New record\n')
+            f.write(str(casino.sample)+'\n')
+            f.write(f'my reward: {reward2}, best reward: {reward3}\n')
+            f.write('```python\n')
             f.write(input_str)
-            f.write('```')
+            f.write('```\n')
             f.write('-'*100)
