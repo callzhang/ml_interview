@@ -125,7 +125,7 @@ class BestPlay:
         
         # 开始计算
         # fit with curve_fit
-        parameters, cov_matrix = curve_fit(poisson.pmf, bin_middles, entries)
+        # parameters, cov_matrix = curve_fit(poisson.pmf, bin_middles, entries)
 
         
 
