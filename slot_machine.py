@@ -227,7 +227,7 @@ if st.button('执行我的策略'):
     st.download_button('下载记录', record, file_name='成绩单.md')
 
     # 记录
-    if average['我的策略'] < average['最优答案']:
+    if average['我的策略'] > average['最优答案']:
         st.balloons()
         st.text(f'老虎机的回报：{casino.sample} ...')
         with open('sample.md', 'a') as f:

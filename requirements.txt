@@ -4,6 +4,5 @@ pandas
 scipy
 statsmodels
 distfit
-plotly
 matplotlib
 tabulate
