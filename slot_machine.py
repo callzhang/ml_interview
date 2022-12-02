@@ -8,7 +8,7 @@ st.info('''假定你走进一家赌场，你的目标是赢得尽量多的金币
   1. 赌场里面有很多老虎机（可以考虑为无数台），
   2. 每台收益随机（不同的老虎机之间吐出的金币数量随机）
   3. 对于任意一台老虎机，其每次收益一样（单个老虎机的回报固定）
-  4. 现在你有100次机会去玩老虎机
+  4. 现在你有n次机会去玩老虎机(n>100)
   请设计一个策略，这个策略可以让你的期望收益最大。''')
 
 
@@ -43,7 +43,7 @@ TOTAL_PlAY = 100
 casino = Casino(TOTAL_PlAY)
 
 st.subheader(f'样例代码')
-input_str = '''
+sample_code = '''
 import scipy, statsmodels, distfit, sklearn, pandas as pd, numpy as np
 class RandomPlay:
     def __init__(self, casino, total_play):
@@ -68,12 +68,12 @@ class RandomPlay:
                 self.total_reward += max_
         return self.total_reward # 返回结果
 '''
-st.code(input_str, language='python')
+st.code(sample_code, language='python')
 RandomPlay = None
-exec(input_str)
+exec(sample_code)
 
 # 自定义代码
-input_str = '''
+my_code = '''
 class MyPlay: # 这个类名请不要修改
     def __init__(self, casino, total_play):
         self.casino = casino
@@ -82,22 +82,17 @@ class MyPlay: # 这个类名请不要修改
         self.observed = []
 
     def play(self): # 这个函数是必须的
-        epsilon = 0.5
         for i in range(self.total_play):
             r = np.random.random()
-            if r < epsilon or i == 0:
-                reward = self.casino.play()
-                self.total_reward += reward
-                self.observed.append(reward)
-            else:
-                max_ = max(self.observed) if self.observed else 0
-                self.total_reward += max_
+            reward = self.casino.play()
+            self.total_reward += reward
+            self.observed.append(reward)
         return self.total_reward
 '''
 
 st.subheader('答题区域')
 st.info(f'请在下方输入代码，请注意类名为`MyPlay`不要修改，其他参考样例代码')
-my_code = st.text_area('请输入代码', input_str, height=400)
+my_code = st.text_area('请输入代码', my_code, height=300)
 casino.reset()
 MyPlay = None
 exec(my_code)
@@ -146,9 +141,9 @@ class BestPlay:
                     self.exploit()
                 else:
                     self.explore()
+                    print(f'Step {self.played}: loss[{loss}] | gain[{gain}] | total: {self.total_reward}')
             else:
                 self.exploit()
-            print(f'Step {self.played}: loss[{loss}] | gain[{gain}] | total: {self.total_reward}')
         return self.total_reward
             
 
@@ -177,12 +172,14 @@ if st.button('执行我的策略'):
     header = ['随机策略', '我的策略', '最优答案', '得分']
     result = pd.DataFrame(columns=header)
     ph.table(result)
-    for i in range(10):
-        bar.progress(i*10)
-        casino = Casino(TOTAL_PlAY)
-        play_random = RandomPlay(casino, TOTAL_PlAY)
-        play2 = MyPlay(casino, TOTAL_PlAY)
-        bestplay = BestPlay(casino, TOTAL_PlAY)
+    score_best = 0
+    sample_best = None
+    for i in range(100):
+        bar.progress(i+1)
+        casino = Casino(TOTAL_PlAY + i*10)
+        play_random = RandomPlay(casino, TOTAL_PlAY + i*10)
+        play2 = MyPlay(casino, TOTAL_PlAY + i*10)
+        bestplay = BestPlay(casino, TOTAL_PlAY + i*10)
         # 测试随机策略
         reward1 = play_random.play()
         print(f'使用随机策略回报: {reward1}')
@@ -198,23 +195,41 @@ if st.button('执行我的策略'):
         print(f'最佳回报：{reward3}')
         # st.text(f'最佳回报：{reward3}')
         score = int(reward2/reward3*100)
+        if score > score_best:
+            sample_best = casino.sample
         print(f'您的算法得分：{int(reward2/reward3*100)}')
         rewards = pd.Series([reward1, reward2, reward3, score], index=header)
         result = result.append(rewards, ignore_index=True)
         ph.table(result)
+        average = result.mean()
+        if average['得分'] < 98 and i >= 9:
+            break
     bar.progress(100)
-    average = result.mean()
+    
     st.success('平均得分')
     st.table(average)
+    record = f'''
+# New record
+##老虎机序列：
+```
+{str(sample_best)}
+```
+## 游戏记录
+{result.to_markdown()}
+## 平均成绩
+{average.to_markdown()}
+## 策略代码
+```python
+{my_code}
+```
+'''+'-'*100
+    # 下载记录
+    st.download_button('下载记录', record, file_name='成绩单.md')
 
-    if average['我的策略'] > average['最优答案']:
+    # 记录
+    if average['我的策略'] < average['最优答案']:
         st.balloons()
         st.text(f'老虎机的回报：{casino.sample} ...')
         with open('sample.md', 'a') as f:
-            f.write(f'# New record\n')
-            f.write(str(casino.sample)+'\n')
-            f.write(f'my reward: {reward2}, best reward: {reward3}\n')
-            f.write('```python\n')
-            f.write(input_str)
-            f.write('```\n')
-            f.write('-'*100)
+            f.write(record)
+            print(record)
