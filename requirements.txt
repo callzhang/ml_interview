@@ -6,3 +6,4 @@ statsmodels
 distfit
 plotly
 matplotlib
+tabulate
