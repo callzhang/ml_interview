@@ -47,7 +47,8 @@ sample_code = '''
 import scipy, statsmodels, distfit, sklearn, pandas as pd, numpy as np
 class RandomPlay:
     def __init__(self, casino, total_play):
-        # 传入的casino是整个赌场的类
+        # casino：赌场实例，其play()函数为探索一台新的老虎机
+        # total_play：总共可以尝试的次数
         self.casino = casino
         self.total_play = total_play
         self.total_reward = 0
@@ -58,8 +59,8 @@ class RandomPlay:
         for i in range(self.total_play):
             r = np.random.random()
             if r < epsilon or i == 0:
-                # 探索一个新的老虎机
-                reward = self.casino.play() # play一次新的老虎机
+                # 探索一个新的老虎机，调用赌场的play()函数
+                reward = self.casino.play()
                 self.total_reward += reward
                 self.observed.append(reward)
             else:
@@ -206,7 +207,7 @@ if st.button('执行我的策略'):
             break
     bar.progress(100)
     
-    st.success('平均得分')
+    st.info('平均得分')
     st.table(average)
     record = f'''
 # New record
@@ -223,8 +224,6 @@ if st.button('执行我的策略'):
 {my_code}
 ```
 '''+'-'*100
-    # 下载记录
-    st.download_button('下载记录', record, file_name='成绩单.md')
 
     # 记录
     if average['我的策略'] > average['最优答案']:
@@ -233,3 +232,6 @@ if st.button('执行我的策略'):
         with open('sample.md', 'a') as f:
             f.write(record)
             print(record)
+        # 下载记录
+        st.success('恭喜你打败最优答案')
+        st.download_button('下载记录', record, file_name='成绩单.md')
