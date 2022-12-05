@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+from utils import *
+import logging
 
 st.title('Casino game')
 st.subheader('问题')
@@ -10,7 +12,6 @@ st.info('''假定你走进一家赌场，你的目标是赢得尽量多的金币
   3. 对于任意一台老虎机，其每次收益一样（单个老虎机的回报固定）
   4. 现在你有n次机会去玩老虎机(n>100)
   请设计一个策略，这个策略可以让你的期望收益最大。''')
-
 
 
 class Casino:
@@ -30,7 +31,7 @@ class Casino:
             self.current += 1
             return reward
         else:
-            raise Exception('No more chance!')
+            raise Exception('你已超过尝试次数!')
 
     def reset(self):
         self.current = 0
@@ -80,14 +81,11 @@ class MyPlay: # 这个类名请不要修改
         self.casino = casino
         self.total_play = total_play
         self.total_reward = 0
-        self.observed = []
 
     def play(self): # 这个函数是必须的
         for i in range(self.total_play):
-            r = np.random.random()
             reward = self.casino.play()
             self.total_reward += reward
-            self.observed.append(reward)
         return self.total_reward
 '''
 
@@ -98,7 +96,7 @@ casino.reset()
 MyPlay = None
 exec(my_code)
 
-# 最优策略
+# 基准策略
 from distfit import distfit
 class BestPlay:
     def __init__(self, casino, total_play) -> None:
@@ -167,14 +165,19 @@ class BestPlay:
     max = property(get_max)
         
 
-if st.button('执行我的策略'):
+myname = st.text_input('请输入你的名字')
+st.session_state['myname'] = myname
+if not myname:
+    st.warning('请填写名字')
+if st.button('执行我的策略') and myname:
     bar = st.progress(0)
     ph = st.empty()
-    header = ['随机策略', '我的策略', '最优答案', '得分']
+    header = ['我的策略', '基准策略', '得分']
     result = pd.DataFrame(columns=header)
     ph.table(result)
     score_best = 0
     sample_best = None
+    stable = True
     for i in range(100):
         bar.progress(i+1)
         casino = Casino(TOTAL_PlAY + i*10)
@@ -182,35 +185,44 @@ if st.button('执行我的策略'):
         play2 = MyPlay(casino, TOTAL_PlAY + i*10)
         bestplay = BestPlay(casino, TOTAL_PlAY + i*10)
         # 测试随机策略
-        reward1 = play_random.play()
-        print(f'使用随机策略回报: {reward1}')
+        reward_random = play_random.play()
+        print(f'使用随机策略回报: {reward_random}')
         # st.text(f'使用随机策略回报: {reward1}')
         # 测试我的策略
         casino.reset()
-        reward2 = play2.play()
-        print(f'我的策略的回报: {reward2}')
+        my_reward = play2.play()
+        print(f'我的策略的回报: {my_reward}')
         # st.text(f'我的策略的回报: {reward2}')
-        # 测试最佳结果
+        # 测试最佳策略
         casino.reset()
-        reward3 = bestplay.play()
-        print(f'最佳回报：{reward3}')
+        reward_benchmark = bestplay.play()
+        print(f'最佳回报：{reward_benchmark}')
         # st.text(f'最佳回报：{reward3}')
-        score = int(reward2/reward3*100)
+        score = int((my_reward - reward_random) / (reward_benchmark - reward_random) *100) if reward_benchmark > reward_random and reward_benchmark > my_reward else int(my_reward/reward_benchmark*100)
         if score > score_best:
             sample_best = casino.sample
-        print(f'您的算法得分：{int(reward2/reward3*100)}')
-        rewards = pd.Series([reward1, reward2, reward3, score], index=header)
+        print(f'您的算法得分：{score}')
+        rewards = pd.Series([my_reward, reward_benchmark, score], index=header)
         result = result.append(rewards, ignore_index=True)
         ph.table(result)
         average = result.mean()
-        if average['得分'] < 98 and i >= 9:
+        # 测试一下结果稳定性
+        if i >= 9:
+            dist = distfit(distr=['norm'], smooth=10)
+            dist.fit_transform(np.array(result['得分']), verbose=1)
+            mean = dist.model['params'][0]
+            scale = dist.model['params'][1]
+            print(dist.model)
+            if scale/mean > 0.5:
+                st.warning('结果不稳定，提前结束')
+                stable = False
+                break
+        if average['得分'] < 96 and i >= 9:
             break
     bar.progress(100)
-    
-    st.info('平均得分')
-    st.table(average)
+    st.info(f'平均得分: {average["得分"]}')
     record = f'''
-# New record
+# 新的算法提交（{myname}）
 ##老虎机序列：
 ```
 {str(sample_best)}
@@ -224,14 +236,28 @@ if st.button('执行我的策略'):
 {my_code}
 ```
 '''+'-'*100
+    st.session_state['record'] = record
+    st.session_state['score'] = average['得分']
 
     # 记录
-    if average['我的策略'] > average['最优答案']:
+    if average['得分'] > 100 and stable:
         st.balloons()
         st.text(f'老虎机的回报：{casino.sample} ...')
         with open('sample.md', 'a') as f:
             f.write(record)
             print(record)
         # 下载记录
-        st.success('恭喜你打败最优答案')
-        st.download_button('下载记录', record, file_name='成绩单.md')
+        st.success('恭喜你打败基准策略')
+        st.download_button('下载记录', record, file_name='测试记录.md')
+
+
+if st.button('提交你的策略'):
+    if 'record' not in st.session_state:
+        st.error('请先执行你的代码')
+    else:
+        # res = send_message(f"新的答案提交：{myname}\n{st.session_state['record']}", type='error')
+        # if res:
+        #     st.info('提交成功')
+        logging.info('提交结果中')
+        file_key = upload_record(st.session_state['myname'], st.session_state['record'])
+        st.info(file_key)
