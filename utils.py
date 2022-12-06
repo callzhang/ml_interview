@@ -2,7 +2,6 @@ from gsheetsdb import connect
 import requests, json, logging
 import streamlit as st
 import pandas as pd
-from streamlit import caching
 
 sheet_url = st.secrets["public_gsheets_url"]
 FEISHU_ROBOT_URL = 'https://open.feishu.cn/open-apis/bot/v2/hook/080fd224-7e32-4b3a-ab64-4971df0c3bd1'
