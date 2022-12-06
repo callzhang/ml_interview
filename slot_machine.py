@@ -5,6 +5,7 @@ import numpy as np
 from utils import *
 import logging
 from rich.traceback import install
+from datetime import datetime
 install(show_locals=True, max_frames=5, suppress=[st])
 logging.basicConfig(
     level=logging.INFO,
@@ -15,13 +16,32 @@ logging.basicConfig(
 )
 
 st.title('Casino game')
+if 'db' not in st.session_state:
+    db = get_db()
+    st.session_state['db'] = db
+key = st.text_input('请输入访问码，没有访问码请找HR询问。')
+if key:
+    access_data = st.session_state['db'].query('访问码==@key')
+    if len(access_data) == 0:
+        st.warning('未授权，请重试！')
+        st.stop()
+    myname = access_data['姓名'].iloc[0]
+    st.session_state['myname'] = myname
+    expiration = access_data['截止日期'].iloc[0]
+    if datetime.now().date() > expiration:
+        st.info(f'{myname}，本账户已截止，请联系HR。')
+        st.stop()
+    else:
+        st.info(f'{myname}，欢迎您！您的截止日期为：{expiration}')
+else:
+    st.stop()
 st.subheader('问题')
-st.info('''假定你走进一家赌场，你的目标是赢得尽量多的金币。前提：
+st.info('''假定你走进一家赌场，我的目标是赢得尽量多的金币。前提：
   1. 赌场里面有很多老虎机（可以考虑为无数台），
   2. 每台收益随机（不同的老虎机之间吐出的金币数量随机）
   3. 对于任意一台老虎机，其每次收益一样（单个老虎机的回报固定）
   4. 现在你有n次机会去玩老虎机(n>100)
-  请设计一个策略，这个策略可以让你的期望收益最大。''')
+  请设计一个策略，这个策略可以让我的期望收益最大。''')
 
 
 class Casino:
@@ -175,11 +195,11 @@ class BestPlay:
     max = property(get_max)
         
 
-myname = st.text_input('请输入你的名字')
-st.session_state['myname'] = myname
+
 if not myname:
     st.warning('请填写名字')
 if st.button('执行我的策略') and myname:
+    # 进度
     bar = st.progress(0)
     ph = st.empty()
     header = ['我的策略', '基准策略', '得分']
@@ -231,6 +251,7 @@ if st.button('执行我的策略') and myname:
             break
     bar.progress(100)
     st.info(f'平均得分: {average["得分"]}')
+    # 生成记录
     record = f'''
 # 新的算法提交（{myname}）
 ##老虎机序列：
@@ -261,13 +282,13 @@ if st.button('执行我的策略') and myname:
         st.download_button('下载记录', record, file_name='测试记录.md')
 
 
-if st.button('提交你的策略'):
+if st.button('提交策略'):
     if 'record' not in st.session_state:
-        st.error('请先执行你的代码')
+        st.error('请先执行策略')
     else:
         # res = send_message(f"新的答案提交：{myname}\n{st.session_state['record']}", type='error')
         # if res:
         #     st.info('提交成功')
         logging.info('提交结果中')
-        file_key = upload_record(st.session_state['myname'], st.session_state['record'])
-        st.info(file_key)
+        result = upload_record(st.session_state['myname'], st.session_state['record'])
+        st.info(result)

@@ -6,3 +6,5 @@ statsmodels
 distfit
 matplotlib
 tabulate
+rich
+gsheetsdb
