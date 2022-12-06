@@ -1,8 +1,18 @@
+from rich.logging import RichHandler
 import streamlit as st
 import pandas as pd
 import numpy as np
 from utils import *
 import logging
+from rich.traceback import install
+install(show_locals=True, max_frames=5, suppress=[st])
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(message)s",
+    datefmt="[%X]",
+    handlers=[RichHandler(rich_tracebacks=True, markup=True,
+                          tracebacks_show_locals=True, tracebacks_suppress=[st])],
+)
 
 st.title('Casino game')
 st.subheader('问题')

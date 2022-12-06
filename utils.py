@@ -29,42 +29,13 @@ def send_message(message: str, type = None):
 
 
 def upload_record(name:str, record: str):
-    url = 'http://localhost:9000/new_record_notification'
+    url = 'https://feishu-robot-automatnservice-agwxaiqmvf.cn-beijing.fcapp.run/new_record_notification'
     payload = {
         'name': name,
         'record': record
     }
     res = requests.post(url, json=payload)
-    assert res.status_code == 200, res.text
+    assert res.status_code == 200, f'{res}, {res.text}'
     file_key = res.json()
     return file_key
 
-
-def new_record_message(file_key):
-    url = "https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=user_id"
-    content = {
-        "title": "新的提交记录",
-      		"content": [
-                [
-                    {
-                        "tag": "text",
-                        "text": "得到一个新的算法提交记录"
-                    }
-                ],
-                [{
-                    "tag": "media",
-                    "file_key": {file_key},
-                    # "image_key": "img_7ea74629-9191-4176-998c-2e603c9c5e8g"
-            }]
-		]
-    }
-    payload = json.dump({
-        'receive_id_type': 'chat_id',
-        "receive_id": "ou_7d8a6e6df7621556ce0d21922b676706ccs",
-        "msg_type": "post",
-        "content": content.encode(),
-    })
-    headers = {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer {}'
-    }
