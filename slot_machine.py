@@ -109,14 +109,13 @@ my_code = '''
 class MyPlay: # 这个类名请不要修改
     def __init__(self, casino, total_play):
         self.casino = casino
-        self.total_play = total_play
         self.total_reward = 0
+        # 其他初始化代码
 
-    def play(self): # 这个函数是必须的
-        for i in range(self.total_play):
-            reward = self.casino.play()
-            self.total_reward += reward
+    def play(self):
+        # 填入你的策略
         return self.total_reward
+        
 '''
 
 st.subheader('答题区域')

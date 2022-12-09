@@ -34,6 +34,7 @@ def send_message(message: str, type = None):
 
 def upload_record(name:str, record: str):
     url = 'https://feishu-robot-automatnservice-agwxaiqmvf.cn-beijing.fcapp.run/new_record_notification'
+    #url = 'http://localhost:9000/new_record_notification'
     payload = {
         'name': name,
         'record': record
