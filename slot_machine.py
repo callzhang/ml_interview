@@ -193,7 +193,13 @@ class BestPlay:
 
     max = property(get_max)
         
-
+score_result = {
+    '远低于平均的小白': range(int(-1e5),92),
+    '新手请继续努力': range(92, 95),
+    '有点感觉的小学生': range(95, 98),
+    '有经验的玩家': range(98,100),
+    '赌场一霸': range(100, int(1e5)),
+}
 
 if not myname:
     st.warning('请填写名字')
@@ -201,7 +207,7 @@ if st.button('执行我的策略') and myname:
     # 进度
     bar = st.progress(0)
     ph = st.empty()
-    header = ['我的策略', '基准策略', '得分']
+    header = ['我的策略', '基准策略', '评分']
     result = pd.DataFrame(columns=header)
     ph.table(result)
     score_best = 0
@@ -230,26 +236,31 @@ if st.button('执行我的策略') and myname:
         score = int((my_reward - reward_random) / (reward_benchmark - reward_random) *100) if reward_benchmark > reward_random and reward_benchmark > my_reward else int(my_reward/reward_benchmark*100)
         if score > score_best:
             sample_best = casino.sample
-        print(f'您的算法得分：{score}')
         rewards = pd.Series([my_reward, reward_benchmark, score], index=header)
         result = result.append(rewards, ignore_index=True)
         ph.table(result)
         average = result.mean()
+        avg_score = average['评分']
         # 测试一下结果稳定性
         if i >= 9:
             dist = distfit(distr=['norm'], smooth=10)
-            dist.fit_transform(np.array(result['得分']), verbose=1)
+            dist.fit_transform(np.array(result['评分']), verbose=1)
             mean = dist.model['params'][0]
             scale = dist.model['params'][1]
             print(dist.model)
             if scale/mean > 0.5:
-                st.warning('结果不稳定，提前结束')
+                st.warning('结果不稳定，请优化算法')
                 stable = False
                 break
-        if average['得分'] < 96 and i >= 9:
+        if avg_score < 98 and i >= 9:
             break
     bar.progress(100)
-    st.info(f'平均得分: {average["得分"]}')
+    for k, v in score_result.items():
+        if int(avg_score) in v:
+            comment = k
+            break
+    st.info(f'你的成绩是：{comment}')
+    st.session_state['comment'] = comment
     # 生成记录
     record = f'''
 # 新的算法提交（{myname}）
@@ -267,10 +278,10 @@ if st.button('执行我的策略') and myname:
 ```
 '''+'-'*100
     st.session_state['record'] = record
-    st.session_state['score'] = average['得分']
+    st.session_state['score'] = avg_score
 
     # 记录
-    if average['得分'] > 100 and stable:
+    if average['评分'] > 100 and stable:
         st.balloons()
         st.text(f'老虎机的回报：{casino.sample} ...')
         with open('sample.md', 'a') as f:
@@ -284,10 +295,11 @@ if st.button('执行我的策略') and myname:
 if st.button('提交策略'):
     if 'record' not in st.session_state:
         st.error('请先执行策略')
+    elif st.session_state['score'] < 96:
+        st.warning('请先优化策略再提交')
+        upload_str = f"{st.session_state['myname']}尝试提交，但是成绩不够好，成绩为{st.session_state['score']}({st.session_state['comment']})"
+        result = upload_record(st.session_state['myname'], upload_str)
     else:
-        # res = send_message(f"新的答案提交：{myname}\n{st.session_state['record']}", type='error')
-        # if res:
-        #     st.info('提交成功')
         logging.info('提交结果中')
         result = upload_record(st.session_state['myname'], st.session_state['record'])
         st.info(result)
