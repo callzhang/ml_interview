@@ -86,18 +86,11 @@ class RandomPlay:
         self.observed = []
 
     def play(self): # 系统会调用这个函数执行策略
-        epsilon = 0.5
         for i in range(self.total_play):
-            r = np.random.random()
-            if r < epsilon or i == 0:
-                # 探索一个新的老虎机，调用赌场的play()函数
-                reward = self.casino.play()
-                self.total_reward += reward
-                self.observed.append(reward)
-            else:
-                # 使用回报最大的老虎机
-                max_ = max(self.observed)
-                self.total_reward += max_
+            # 探索一个新的老虎机，调用赌场的play()函数
+            reward = self.casino.play()
+            self.total_reward += reward
+            self.observed.append(reward)
         return self.total_reward # 返回结果
 '''
 st.code(sample_code, language='python')
@@ -110,10 +103,13 @@ class MyPlay: # 这个类名请不要修改
     def __init__(self, casino, total_play):
         self.casino = casino
         self.total_reward = 0
+        self.total_play = total_play
         # 其他初始化代码
 
     def play(self):
-        # 填入你的策略
+        for i in range(self.total_play):
+            # 填入你的策略
+            pass
         return self.total_reward
         
 '''
@@ -297,7 +293,7 @@ if st.button('提交策略'):
         st.error('请先执行策略')
     elif st.session_state['score'] < 96:
         st.warning('请先优化策略再提交')
-        upload_str = f"{st.session_state['myname']}尝试提交，但是成绩不够好，成绩为{st.session_state['score']}({st.session_state['comment']})"
+        upload_str = f"【{st.session_state['myname']}】尝试提交，但是成绩不够好。\n其成绩为{st.session_state['score']}({st.session_state['comment']})"
         result = upload_record(st.session_state['myname'], upload_str)
     else:
         logging.info('提交结果中')
