@@ -15,6 +15,8 @@ logging.basicConfig(
                           tracebacks_show_locals=True, tracebacks_suppress=[st])],
 )
 
+TOTAL_PlAY = 100
+
 st.title('Casino game')
 if 'db' not in st.session_state:
     db = get_db()
@@ -52,72 +54,102 @@ class Casino:
         population -= int(max_reward / 2)
         population[population < 0] = 0
         self.population = population
-        self.current = 0
-        self.total = 0
+        self.tried = 0
+        self.history = [] # 记录每次探索的结果
+        self.rewards = [] # 记录探索+穷尽的结果
 
     def play(self):
-        if self.current < self.n:
-            reward = self.population[self.current]
-            self.current += 1
-            return reward
-        else:
-            raise Exception('你已超过尝试次数!')
-
+        reward = self.population[self.tried]
+        self.tried += 1
+        self.history.append(reward)
+        self.rewards.append(reward)
+        assert len(self.rewards) <= self.n, '你已超过尝试次数，请检查代码！'
+        return reward
+        
+    def play_machine(self, machine_id):
+        assert machine_id < len(self.history), '指定机器超出已尝试机器范围，请检查代码！'
+        reward = self.history[machine_id]
+        self.rewards.append(reward)
+        assert len(self.rewards) <= self.n, '你已超过尝试次数，请检查代码！'
+        return reward
+    
     def reset(self):
-        self.current = 0
+        self.tried = 0
+        self.rewards = []
+    
+    def get_total_reward(self):
+        return sum(self.rewards)
 
     def get_sample(self):
         return self.population.tolist()
     sample = property(get_sample)
 
-TOTAL_PlAY = 100
-casino = Casino(TOTAL_PlAY)
 
 st.subheader(f'样例代码')
 sample_code = '''
 import scipy, statsmodels, distfit, sklearn, pandas as pd, numpy as np
 class RandomPlay:
-    def __init__(self, casino, total_play):
+    def __init__(self, casino, total_play): 
         # casino：赌场实例，其play()函数为探索一台新的老虎机
         # total_play：总共可以尝试的次数
         self.casino = casino
         self.total_play = total_play
-        self.total_reward = 0
+        self.played = 0
         self.observed = []
 
-    def play(self): # 系统会调用这个函数执行策略
-        for i in range(self.total_play):
+    def play(self): # 系统会调用`total_play`次这个函数执行策略
+        self.played += 1
+        if np.random.rand() < 0.5 or self.played < 5: # 随机探索一个老虎机
             # 探索一个新的老虎机，调用赌场的play()函数
             reward = self.casino.play()
-            self.total_reward += reward
             self.observed.append(reward)
-        return self.total_reward # 返回结果
+        else:
+            # 选择已知最大的老虎机
+            max_machine = np.argmax(self.observed)
+            reward = self.casino.play_machine(max_machine)
+            assert reward == max(self.observed)
+        return
 '''
 st.code(sample_code, language='python')
 RandomPlay = None
 exec(sample_code)
 
 # 自定义代码
-my_code = '''
-class MyPlay: # 这个类名请不要修改
+my_code = '''class MyPlay: # 这个类名请不要修改
     def __init__(self, casino, total_play):
         self.casino = casino
-        self.total_reward = 0
+        self.observed = []
         self.total_play = total_play
+        self.played = 0
         # 其他初始化代码
 
     def play(self):
-        for i in range(self.total_play):
-            # 填入你的策略
-            pass
-        return self.total_reward
-        
+        # 请注意，这个函数会被系统调用total_play次
+        # 填入你的策略，使用以下两个方法中的一个
+        # reward = self.casino.play() # 调用这个函数可以探索一个新的老虎机
+        # self.casino.play_machine(0) # 调用这个函数可以使用一个已知老虎机
+        return
 '''
+
+# '''
+#     def play1(self):
+#         self.played += 1
+#         if self.played <= int(self.total_play**0.5):
+#             reward = self.casino.play() # 调用这个函数可以探索一个新的老虎机
+#             self.observed.append(reward)
+#         else:
+#             max_machine = np.argmax(self.observed)
+#             self.casino.play_machine(max_machine) # 调用这个函数可以使用一个已知老虎机
+#         return
+# '''
 
 st.subheader('答题区域')
 st.info(f'请在下方输入代码，请注意类名为`MyPlay`不要修改，其他参考样例代码')
 my_code = st.text_area('请输入代码', my_code, height=300)
-casino.reset()
+if 'st.' in my_code or 'streamlit' in my_code:
+    st.warning('代码中引用了非法库，请删除！')
+    st.stop()
+casino = Casino(TOTAL_PlAY)
 MyPlay = None
 exec(my_code)
 
@@ -130,6 +162,7 @@ class BestPlay:
         self.total_reward = 0
         self.observed = []
         self.played = 0
+        self.free_play_times = int(total_play**0.5)
 
     def fit_dist(self):
         dist = distfit(distr=['gamma', 'lognorm', 'beta', 't', 'chi'], smooth=10)
@@ -138,21 +171,19 @@ class BestPlay:
         return dist, score
 
     def play(self):
-        free_play_times = 10
+        self.played += 1
         # 先玩10次
-        for i in range(self.total_play):
-            if i < free_play_times:
-                self.explore()
-                continue
+        if self.played <= self.free_play_times:
+            self.explore()
             
-            # calculate gains and loss, skip if starting to exploit
-            if self.played - len(self.observed) < 3:
-                # fit with curve_fit
-                dist, score = self.fit_dist()
+        # calculate gains and loss, skip if starting to exploit
+        elif self.played - len(self.observed) < 3:
+            # fit with curve_fit
+            dist, score = self.fit_dist()
 
-                if score > 1:  # if RSS is too large, continue explore
-                    self.explore()
-                    continue
+            if score > 1:  # if RSS is too large, continue explore
+                self.explore()
+            else:
                 y = range(self.max*5)
                 # proba = dist.predict(y)['y_proba']
                 p_value = dist.model['model'].cdf(y)
@@ -166,10 +197,9 @@ class BestPlay:
                 else:
                     self.explore()
                     print(f'Step {self.played}: loss[{loss}] | gain[{gain}] | total: {self.total_reward}')
-            else:
-                self.exploit()
-        return self.total_reward
-            
+        else:
+            self.exploit()
+        return
 
     def explore(self):
         reward = self.casino.play()
@@ -182,6 +212,9 @@ class BestPlay:
     def exploit(self):
         self.played += 1
         self.total_reward += self.max
+        max_idx = self.observed.index(self.max)
+        reward = self.casino.play_machine(max_idx)
+        assert reward == self.max, 'exploit error!'
         return self.max
     
     def get_max(self):
@@ -192,7 +225,7 @@ class BestPlay:
 score_result = {
     '远低于平均的小白': range(int(-1e5),92),
     '新手请继续努力': range(92, 95),
-    '有点感觉的小学生': range(95, 98),
+    '有点感觉了': range(95, 98),
     '有经验的玩家': range(98,100),
     '赌场一霸': range(100, int(1e5)),
 }
@@ -211,22 +244,29 @@ if st.button('执行我的策略') and myname:
     stable = True
     for i in range(100):
         bar.progress(i+1)
-        casino = Casino(TOTAL_PlAY + i*10)
-        play_random = RandomPlay(casino, TOTAL_PlAY + i*10)
-        play2 = MyPlay(casino, TOTAL_PlAY + i*10)
-        bestplay = BestPlay(casino, TOTAL_PlAY + i*10)
+        total_play = TOTAL_PlAY + i*10
+        casino = Casino(total_play)
+        play_random = RandomPlay(casino, total_play)
+        play2 = MyPlay(casino, total_play)
+        bestplay = BestPlay(casino, total_play)
         # 测试随机策略
-        reward_random = play_random.play()
+        for j in range(total_play):
+            play_random.play()
+        reward_random = casino.get_total_reward()
         print(f'使用随机策略回报: {reward_random}')
         # st.text(f'使用随机策略回报: {reward1}')
         # 测试我的策略
         casino.reset()
-        my_reward = play2.play()
+        for j in range(total_play):
+            play2.play()
+        my_reward = casino.get_total_reward()
         print(f'我的策略的回报: {my_reward}')
         # st.text(f'我的策略的回报: {reward2}')
         # 测试最佳策略
         casino.reset()
-        reward_benchmark = bestplay.play()
+        for j in range(total_play):
+            bestplay.play()
+        reward_benchmark = casino.get_total_reward()
         print(f'最佳回报：{reward_benchmark}')
         # st.text(f'最佳回报：{reward3}')
         score = int((my_reward - reward_random) / (reward_benchmark - reward_random) *100) if reward_benchmark > reward_random and reward_benchmark > my_reward else int(my_reward/reward_benchmark*100)
@@ -244,10 +284,10 @@ if st.button('执行我的策略') and myname:
             mean = dist.model['params'][0]
             scale = dist.model['params'][1]
             print(dist.model)
-            if scale/mean > 0.5:
-                st.warning('结果不稳定，请优化算法')
-                stable = False
-                break
+            # if scale/mean > 0.5:
+            #     st.warning('结果不稳定，请优化算法')
+            #     stable = False
+            #     break
         if avg_score < 98 and i >= 9:
             break
     bar.progress(100)
@@ -260,14 +300,11 @@ if st.button('执行我的策略') and myname:
     # 生成记录
     record = f'''
 # 新的算法提交（{myname}）
-##老虎机序列：
-```
-{str(sample_best)}
-```
-## 游戏记录
-{result.to_markdown()}
+
 ## 平均成绩
 {average.to_markdown()}
+## 游戏记录
+{result.to_markdown()}
 ## 策略代码
 ```python
 {my_code}
@@ -279,7 +316,7 @@ if st.button('执行我的策略') and myname:
     # 记录
     if average['评分'] > 100 and stable:
         st.balloons()
-        st.text(f'老虎机的回报：{casino.sample} ...')
+        # st.text(f'老虎机的回报：{casino.sample} ...')
         with open('sample.md', 'a') as f:
             f.write(record)
             print(record)
