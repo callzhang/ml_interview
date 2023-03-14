@@ -90,7 +90,7 @@ sample_code = '''
 import scipy, statsmodels, distfit, sklearn, pandas as pd, numpy as np
 class RandomPlay:
     def __init__(self, casino, total_play): 
-        # casino：赌场实例，其play()函数为探索一台新的老虎机
+        # casino：赌场实例
         # total_play：总共可以尝试的次数
         self.casino = casino
         self.total_play = total_play
@@ -99,15 +99,15 @@ class RandomPlay:
 
     def play(self): # 系统会调用`total_play`次这个函数执行策略
         self.played += 1
-        if np.random.rand() < 0.5 or self.played < 5: # 随机探索一个老虎机
-            # 探索一个新的老虎机，调用赌场的play()函数
+        if np.random.rand() < 0.5 or not self.observed:
+            # 探索一个新的老虎机，调用赌场的play()函数，返回一个新的reward
             reward = self.casino.play()
             self.observed.append(reward)
         else:
-            # 选择已知最大的老虎机
-            max_machine = np.argmax(self.observed)
-            reward = self.casino.play_machine(max_machine)
-            assert reward == max(self.observed)
+            # 选择过去的老虎机，可以从历史记录中挑一个，指定machine_id
+            machine_id = np.random.choice(range(len(self.observed)))
+            reward = self.casino.play_machine(machine_id)
+            assert reward == self.observed[machine_id]
         return
 '''
 st.code(sample_code, language='python')
@@ -121,7 +121,6 @@ my_code = '''class MyPlay: # 这个类名请不要修改
         self.observed = []
         self.total_play = total_play
         self.played = 0
-        # 其他初始化代码
 
     def play(self):
         # 请注意，这个函数会被系统调用total_play次
@@ -144,8 +143,7 @@ my_code = '''class MyPlay: # 这个类名请不要修改
 # '''
 
 st.subheader('答题区域')
-st.info(f'请在下方输入代码，请注意类名为`MyPlay`不要修改，其他参考样例代码')
-my_code = st.text_area('请输入代码', my_code, height=300)
+my_code = st.text_area('请输入代码', my_code, height=400, help='请注意类名为`MyPlay`不要修改，并提供`play`函数供系统调用')
 if 'st.' in my_code or 'streamlit' in my_code:
     st.warning('代码中引用了非法库，请删除！')
     st.stop()
@@ -317,9 +315,9 @@ if st.button('执行我的策略') and myname:
     if average['评分'] > 100 and stable:
         st.balloons()
         # st.text(f'老虎机的回报：{casino.sample} ...')
-        with open('sample.md', 'a') as f:
-            f.write(record)
-            print(record)
+        # with open('sample.md', 'a') as f:
+        #     f.write(record)
+        print(record)
         # 下载记录
         st.success('恭喜你打败基准策略')
         st.download_button('下载记录', record, file_name='测试记录.md')
