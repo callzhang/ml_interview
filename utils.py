@@ -8,6 +8,7 @@ FEISHU_ROBOT_URL = 'https://open.feishu.cn/open-apis/bot/v2/hook/080fd224-7e32-4
 ERROR_ROBOT_URL = 'https://open.feishu.cn/open-apis/bot/v2/hook/4c006db0-21fa-4853-b7fa-14bc3b65f94d'
 CHAT_ID = 'oc_4fffe5fcd31d362acfd394525ce37118'
 DINGTALK_ROBOT_URL= 'https://oapi.dingtalk.com/robot/send?access_token=c919636eccab6469508faaca078d275154564609c033b0e9263b10e337b43db5'
+headers = {'Content-Type': 'application/json;charset=utf-8'}
 def send_message(message: str, type = None):
     data = json.dumps({
         "msgtype": "text",
@@ -16,9 +17,9 @@ def send_message(message: str, type = None):
         }
     })
     if type == 'error':
-        res = requests.post(ERROR_ROBOT_URL, data=data)
+        res = requests.post(DINGTALK_ROBOT_URL, data=data, headers=headers)
     else:
-        res = requests.post(DINGTALK_ROBOT_URL, data=data)
+        res = requests.post(DINGTALK_ROBOT_URL, data=data, headers=headers)
 
     if res.json().get('code', 0) != 0 and type != 'error':
         msg = res.json().get('msg', '')
@@ -45,7 +46,7 @@ def upload_record(name:str, record: str):
             "content": record
         }
     })
-    requests.post(DINGTALK_ROBOT_URL, data=data)
+    requests.post(DINGTALK_ROBOT_URL, data=data, headers=headers)
     res = requests.post(url, json=payload)
     assert res.status_code == 200, f'{res}, {res.text}'
     file_key = res.json()
