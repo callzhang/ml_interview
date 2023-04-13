@@ -7,7 +7,7 @@ sheet_url = st.secrets["public_gsheets_url"]
 FEISHU_ROBOT_URL = 'https://open.feishu.cn/open-apis/bot/v2/hook/080fd224-7e32-4b3a-ab64-4971df0c3bd1'
 ERROR_ROBOT_URL = 'https://open.feishu.cn/open-apis/bot/v2/hook/4c006db0-21fa-4853-b7fa-14bc3b65f94d'
 CHAT_ID = 'oc_4fffe5fcd31d362acfd394525ce37118'
-
+DINGTALK_ROBOT_URL= 'https://oapi.dingtalk.com/robot/send?access_token=c919636eccab6469508faaca078d275154564609c033b0e9263b10e337b43db5'
 def send_message(message: str, type = None):
     data = json.dumps({
         "msg_type": "text",
