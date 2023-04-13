@@ -38,12 +38,12 @@ if key:
 else:
     st.stop()
 st.subheader('问题')
-st.info('''假定你走进一家赌场，我的目标是赢得尽量多的金币。前提：
+st.info('''假定你走进一家赌场，你的目标是赢得尽量多的金币。前提：
   1. 赌场里面有很多老虎机（可以考虑为无数台），
   2. 每台收益随机（不同的老虎机之间吐出的金币数量随机）
   3. 对于任意一台老虎机，其每次收益一样（单个老虎机的回报固定）
   4. 现在你有n次机会去玩老虎机(n>100)
-  请设计一个策略，这个策略可以让我的期望收益最大。''')
+  请设计一个策略，这个策略可以让期望收益最大。''')
 
 
 class Casino:
@@ -58,7 +58,7 @@ class Casino:
         self.history = [] # 记录每次探索的结果
         self.rewards = [] # 记录探索+穷尽的结果
 
-    def play(self):
+    def play_new(self):
         reward = self.population[self.tried]
         self.tried += 1
         self.history.append(reward)
@@ -88,20 +88,18 @@ class Casino:
 st.subheader(f'样例代码')
 sample_code = '''
 import scipy, statsmodels, distfit, sklearn, pandas as pd, numpy as np
-class RandomPlay:
+class CasinoPlay:
     def __init__(self, casino, total_play): 
-        # casino：赌场实例
-        # total_play：总共可以尝试的次数
-        self.casino = casino
-        self.total_play = total_play
+        self.casino = casino # 赌场实例
+        self.total_play = total_play # 总共可以尝试的次数
         self.played = 0
         self.observed = []
 
-    def play(self): # 系统会调用`total_play`次这个函数执行策略
+    def play(self): # 系统会调用`total_play`次本函数执行策略，每次需要决定`play_new`或`play_machine`
         self.played += 1
         if np.random.rand() < 0.5 or not self.observed:
-            # 探索一个新的老虎机，调用赌场的play()函数，返回一个新的reward
-            reward = self.casino.play()
+            # 探索一个新的老虎机，调用赌场的play_new()函数，返回一个新的reward
+            reward = self.casino.play_new()
             self.observed.append(reward)
         else:
             # 选择过去的老虎机，可以从历史记录中挑一个，指定machine_id
@@ -111,21 +109,15 @@ class RandomPlay:
         return
 '''
 st.code(sample_code, language='python')
-RandomPlay = None
+CasinoPlay = None
 exec(sample_code)
 
 # 自定义代码
-my_code = '''class MyPlay: # 这个类名请不要修改
-    def __init__(self, casino, total_play):
-        self.casino = casino
-        self.observed = []
-        self.total_play = total_play
-        self.played = 0
-
+my_code = '''class MyPlay(CasinoPlay): # 这个类名请不要修改
     def play(self):
         # 请注意，这个函数会被系统调用total_play次
         # 填入你的策略，使用以下两个方法中的一个
-        # reward = self.casino.play() # 调用这个函数可以探索一个新的老虎机
+        # reward = self.casino.play_new() # 调用这个函数可以探索一个新的老虎机
         # self.casino.play_machine(0) # 调用这个函数可以使用一个已知老虎机
         return
 '''
@@ -153,14 +145,11 @@ exec(my_code)
 
 # 基准策略
 from distfit import distfit
-class BestPlay:
+class BestPlay(CasinoPlay):
     def __init__(self, casino, total_play) -> None:
-        self.casino = casino
-        self.total_play = total_play
-        self.total_reward = 0
-        self.observed = []
-        self.played = 0
+        super().__init__(casino, total_play)
         self.free_play_times = int(total_play**0.5)
+        self.total_reward = 0
 
     def fit_dist(self):
         dist = distfit(distr=['gamma', 'lognorm', 'beta', 't', 'chi'], smooth=10)
@@ -185,7 +174,7 @@ class BestPlay:
                 y = range(self.max*5)
                 # proba = dist.predict(y)['y_proba']
                 p_value = dist.model['model'].cdf(y)
-                proba = p_value
+                proba = p_value.copy()
                 proba[1:] = p_value[1:]-p_value[:-1]
                 loss = sum([(self.max-y_)*p for y_, p in zip(y, proba) if y_<self.max])
                 steps_left = (self.total_play-self.played)
@@ -200,15 +189,13 @@ class BestPlay:
         return
 
     def explore(self):
-        reward = self.casino.play()
+        reward = self.casino.play_new()
         self.observed.append(reward)
-        self.played += 1
         self.total_reward += reward
         print(f'Step {self.played}: explore, reward: {reward}')
         return reward
 
     def exploit(self):
-        self.played += 1
         self.total_reward += self.max
         max_idx = self.observed.index(self.max)
         reward = self.casino.play_machine(max_idx)
@@ -244,7 +231,7 @@ if st.button('执行我的策略') and myname:
         bar.progress(i+1)
         total_play = TOTAL_PlAY + i*10
         casino = Casino(total_play)
-        play_random = RandomPlay(casino, total_play)
+        play_random = CasinoPlay(casino, total_play)
         play2 = MyPlay(casino, total_play)
         bestplay = BestPlay(casino, total_play)
         # 测试随机策略
