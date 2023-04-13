@@ -10,9 +10,9 @@ CHAT_ID = 'oc_4fffe5fcd31d362acfd394525ce37118'
 DINGTALK_ROBOT_URL= 'https://oapi.dingtalk.com/robot/send?access_token=c919636eccab6469508faaca078d275154564609c033b0e9263b10e337b43db5'
 def send_message(message: str, type = None):
     data = json.dumps({
-        "msg_type": "text",
-        "content": {
-            "text": message
+        "msgtype": "text",
+        "text": {
+            "content": message
         }
     })
     if type == 'error':
@@ -40,12 +40,12 @@ def upload_record(name:str, record: str):
         'record': record
     }
     data = json.dumps({
-        "msg_type": "text",
-        "content": {
-            "text": record
+        "msgtype": "text",
+        "text": {
+            "content": record
         }
     })
-    requests.post(DINGTALK_ROBOT_URL, json=data)
+    requests.post(DINGTALK_ROBOT_URL, data=data)
     res = requests.post(url, json=payload)
     assert res.status_code == 200, f'{res}, {res.text}'
     file_key = res.json()
