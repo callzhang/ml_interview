@@ -18,7 +18,7 @@ def send_message(message: str, type = None):
     if type == 'error':
         res = requests.post(ERROR_ROBOT_URL, data=data)
     else:
-        res = requests.post(FEISHU_ROBOT_URL, data=data)
+        res = requests.post(DINGTALK_ROBOT_URL, data=data)
 
     if res.json().get('code', 0) != 0 and type != 'error':
         msg = res.json().get('msg', '')
