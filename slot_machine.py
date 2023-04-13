@@ -318,6 +318,7 @@ if st.button('提交策略'):
         st.warning('请先优化策略再提交')
         upload_str = f"【{st.session_state['myname']}】尝试提交，但是成绩不够好。\n其成绩为{st.session_state['score']}({st.session_state['comment']})"
         result = upload_record(st.session_state['myname'], upload_str)
+        print(result)
     else:
         logging.info('提交结果中')
         result = upload_record(st.session_state['myname'], st.session_state['record'])

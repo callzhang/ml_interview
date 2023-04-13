@@ -34,7 +34,7 @@ def send_message(message: str, type = None):
 
 
 def upload_record(name:str, record: str):
-    url = 'https://feishu-robot-automatnservice-agwxaiqmvf.cn-beijing.fcapp.run/new_record_notification'
+    # feishu_url = 'https://feishu-robot-automatnservice-agwxaiqmvf.cn-beijing.fcapp.run/new_record_notification'
     #url = 'http://localhost:9000/new_record_notification'
     payload = {
         'name': name,
@@ -46,8 +46,8 @@ def upload_record(name:str, record: str):
             "content": record
         }
     })
-    requests.post(DINGTALK_ROBOT_URL, data=data, headers=headers)
-    res = requests.post(url, json=payload)
+    res = requests.post(DINGTALK_ROBOT_URL, data=data, headers=headers)
+    # res = requests.post(url, json=payload)
     assert res.status_code == 200, f'{res}, {res.text}'
     file_key = res.json()
     return file_key
