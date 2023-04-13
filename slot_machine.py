@@ -325,7 +325,7 @@ if st.button('执行我的策略') and myname:
 
 if st.button('提交策略'):
     if 'record' not in st.session_state:
-        send_message('提交测试')
+        send_message("算法提交测试")
         st.error('请先执行策略')
     elif st.session_state['score'] < 96:
         st.warning('请先优化策略再提交')

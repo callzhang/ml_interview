@@ -39,6 +39,13 @@ def upload_record(name:str, record: str):
         'name': name,
         'record': record
     }
+    data = json.dumps({
+        "msg_type": "text",
+        "content": {
+            "text": record
+        }
+    })
+    requests.post(DINGTALK_ROBOT_URL, json=data)
     res = requests.post(url, json=payload)
     assert res.status_code == 200, f'{res}, {res.text}'
     file_key = res.json()
