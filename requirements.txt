@@ -1,6 +1,6 @@
 scikit-learn
 numpy
-pandas
+pandas==1.5.3
 scipy
 statsmodels
 distfit
