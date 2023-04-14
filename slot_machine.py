@@ -273,7 +273,7 @@ if st.button('执行我的策略') and myname:
             except:
                 scale, mean = 0, scores.mean()
                 
-            if scale/mean > 0.5 or (scores.min()<90 and score.mean()>95):
+            if scale/mean > 0.5 or (scores.min()<90 and scores.mean()>95):
                 st.warning(f'结果不稳定，请优化算法')
                 print(f'scale/mean: {scale/mean}, min: {scores.min()}, mean: {scores.mean()}')
                 break
