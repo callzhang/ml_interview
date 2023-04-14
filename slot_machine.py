@@ -259,7 +259,7 @@ if st.button('执行我的策略') and myname:
             sample_best = casino.sample
         rewards = pd.Series([my_reward, reward_benchmark, score], index=header)
         #result = result.append(rewards, ignore_index=True)
-        result = pd.concat([result, reward], ignore_index=True)
+        result = pd.concat([result, rewards], ignore_index=True)
         ph.table(result)
         average = result.mean()
         avg_score = average['评分']
