@@ -4,6 +4,7 @@ import streamlit as st
 import pandas as pd
 
 sheet_url = st.secrets["public_gsheets_url"]
+dingtalk_url = st.secrets['DINGTALK_ROBOT_URL']
 headers = {'Content-Type': 'application/json;charset=utf-8'}
 def send_message(message: str, type = None):
     data = json.dumps({
@@ -13,9 +14,9 @@ def send_message(message: str, type = None):
         }
     })
     if type == 'error':
-        res = requests.post(st.secrets['DINGTALK_ROBOT_URL'], data=data, headers=headers)
+        res = requests.post(dingtalk_url, data=data, headers=headers)
     else:
-        res = requests.post(st.secrets['DINGTALK_ROBOT_URL'], data=data, headers=headers)
+        res = requests.post(dingtalk_url, data=data, headers=headers)
 
     if res.json().get('code', 0) != 0 and type != 'error':
         msg = res.json().get('msg', '')
@@ -40,7 +41,7 @@ def upload_record(name:str, record: str):
             "content": record
         }
     })
-    res = requests.post(st.secrets['DINGTALK_ROBOT_URL'], data=data, headers=headers)
+    res = requests.post(dingtalk_url, data=data, headers=headers)
     assert res.status_code == 200, f'{res}, {res.text}'
     file_key = res.json()
     return file_key
