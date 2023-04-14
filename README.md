@@ -1,24 +1,28 @@
-### 一个算法工程师的在线测试题
+### ML Engineer Online Test
+[中文](README_CN.md)
 
-这个任务是受到强化学习的启发，但是我在设计这个任务的时候简化了任务要求，使得即使是没有强化学习基础的同学，也能通过基础的概率统计知识，完成这个任务。这使得这个任务可高可低，宽进严出。
+A server for online tests for ML Engineer candidates.
 
-任务：一个关于赌场老虎机策略的代码题
+> This task is inspired by reinforcement learning, but I simplified the task requirements when designing it, so that even students without a basic understanding of Reinforcement Learning can complete the task through basic probability and statistics. This makes the task easier to be solved but hard to be perfect, depending on the examiner's own choice.
 
-考试目的：
-1. 基础概率统计
-2. 算法思维：将实际任务通过数学表达
-3. 编程能力：转化为可执行的代码
+**Task:**
+A coding task to design a strategy to play casino slot machines.
 
-环境变量设置：
-创建`.streamlit/secrets.toml`文件，内容如下：
+**Test objectives:**
+- Basic probability and statistics
+- Algorithm thinking: mathematically express practical tasks
+- Programming ability: convert to executable code.
+
+**Environment variable set up:**
+Create a.streamlit/secrets.tomlfile with the following contents:
 ```
-public_gsheets_url = "xxx" # 公开的google sheet地址, 用于存储用户信息，表头为：姓名、访问码、截止时间
-FEISHU_ROBOT_URL = 'xxx' # 飞书机器人地址（可选）
-ERROR_ROBOT_URL = 'xxx' # 报错群聊机器人地址
-DINGTALK_ROBOT_URL= 'xxx' # 飞书群聊机器人地址
+public_gsheets_url = "xxx" # Public Google Sheet address for storing user information, with headers: name, access code, deadline
+FEISHU_ROBOT_URL = 'xxx' # Feishu robot address (optional)
+ERROR_ROBOT_URL = 'xxx' # Error group chat robot address
+DINGTALK_ROBOT_URL= 'xxx' # DingTalk group chat robot address
 ```
 
-启动方式：
-```bash
+**Start up the server**
+```bash 
 streamlit run slot_machine.py
 ```
