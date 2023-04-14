@@ -271,7 +271,8 @@ if st.button('执行我的策略') and myname:
         if score > score_best:
             sample_best = casino.sample
         rewards = pd.Series([my_reward, reward_benchmark, score], index=header)
-        result = result.append(rewards, ignore_index=True)
+        #result = result.append(rewards, ignore_index=True)
+        result = pd.concat([result, reward], ignore_index=True)
         ph.table(result)
         average = result.mean()
         avg_score = average['评分']
@@ -325,7 +326,6 @@ if st.button('执行我的策略') and myname:
 
 if st.button('提交策略'):
     if 'record' not in st.session_state:
-        upload_record(st.session_state['myname'], '算法记录上传测试')
         st.error('请先执行策略')
     elif st.session_state['score'] < 96:
         st.warning('请先优化策略再提交')
