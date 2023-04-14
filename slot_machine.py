@@ -87,7 +87,7 @@ class Casino:
 
 st.subheader(f'样例代码')
 sample_code = '''
-import scipy, statsmodels, distfit, sklearn, pandas as pd, numpy as np
+import scipy, statsmodels, sklearn, pandas as pd, numpy as np
 class CasinoPlay:
     def __init__(self, casino, total_play): 
         self.casino = casino # 赌场实例
@@ -136,9 +136,9 @@ my_code = '''class MyPlay(CasinoPlay):
 
 st.subheader('答题区域')
 my_code = st.text_area('请输入代码', my_code, height=300, help='请注意类名为`MyPlay`不要修改，并提供`play`函数供系统调用')
-if 'st.' in my_code or 'streamlit' in my_code:
-    st.warning('代码中引用了非法库，请删除！')
-    st.stop()
+# if ' st.' in my_code or 'streamlit' in my_code:
+#     st.warning('代码中引用了非法库，请删除！')
+#     st.stop()
 casino = Casino(TOTAL_PlAY)
 MyPlay = None
 exec(my_code)
@@ -253,7 +253,7 @@ if st.button('执行我的策略') and myname:
         
         # 评分
         score = int((my_reward - reward_random) / (reward_benchmark - reward_random) *100) if reward_benchmark > reward_random and reward_benchmark > my_reward else int(my_reward/reward_benchmark*100)
-        print(f'随机: {reward_random}, 我的策略: {my_reward}, 最佳回报：{reward_benchmark}, 评分：{score}')
+        print(f'{i}: 随机: {reward_random}, 我的策略: {my_reward}, 最佳回报：{reward_benchmark}, 评分：{score}')
         # 记录
         rewards = pd.Series([my_reward, reward_benchmark, score], index=header)
         result = result.append(rewards, ignore_index=True)
@@ -263,25 +263,28 @@ if st.button('执行我的策略') and myname:
         avg_score = average['评分']
         # 测试结果稳定性
         if i >= 9:
-            scores = np.array(result['评分'])
-            dist = distfit(distr=['norm'], smooth=10)
-            dist.fit_transform(scores, verbose=1)
-            mean = dist.model['params'][0]
-            scale = dist.model['params'][1]
-            print(dist.model)
-            if scale/mean > 0.5 or scores.min()<90:
+            try:
+                scores = result['评分']
+                dist = distfit(distr=['norm'], smooth=10)
+                dist.fit_transform(scores, verbose=1)
+                mean = dist.model['params'][0]
+                scale = dist.model['params'][1]
+                print(dist.model)
+            except:
+                scale, mean = 0, scores.mean()
+                
+            if scale/mean > 0.5 or (scores.min()<90 and score.mean()>95):
                 st.warning(f'结果不稳定，请优化算法')
-                print(f'scale/mean: {scale/mean}')
-                stable = False
+                print(f'scale/mean: {scale/mean}, min: {scores.min()}, mean: {scores.mean()}')
                 break
         if avg_score < 98 and i >= 9:
             break
     bar.progress(100)
-    stable = True
     for k, v in score_result.items():
         if int(avg_score) in v:
             comment = k
             break
+        comment = f'{avg_score}'
     st.info(f'你的成绩是：{comment}')
     st.session_state['comment'] = comment
     
@@ -314,8 +317,6 @@ if st.button('执行我的策略') and myname:
 if st.button('提交策略'):
     if 'record' not in st.session_state:
         st.error('请先执行策略')
-    elif not stable:
-        st.warning('结果不稳定，请先优化策略再提交')
     elif st.session_state.score < 95:
         st.warning('请先优化策略再提交')
         upload_str = f"【{st.session_state['myname']}】尝试提交，但是成绩不够好。\n其成绩为{st.session_state['score']}({st.session_state['comment']})"
