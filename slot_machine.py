@@ -78,7 +78,7 @@ class Casino:
         self.rewards = []
     
     def get_total_reward(self):
-        return sum(self.rewards).item()
+        return sum(self.rewards)
 
     def get_sample(self):
         return self.population.tolist()
