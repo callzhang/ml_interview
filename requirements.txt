@@ -1,6 +1,5 @@
 scikit-learn
 numpy
-pandas==1.5.3
 scipy
 statsmodels
 distfit
@@ -8,3 +7,4 @@ matplotlib
 tabulate
 rich
 gsheetsdb
+pandas==1.5.3
