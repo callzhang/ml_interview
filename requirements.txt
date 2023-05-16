@@ -7,4 +7,4 @@ matplotlib
 tabulate
 rich
 gsheetsdb
-pandas==1.5.3
+pandas<=1.5.3
