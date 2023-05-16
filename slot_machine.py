@@ -255,9 +255,10 @@ if st.button('执行我的策略') and myname:
         score = int((my_reward - reward_random) / (reward_benchmark - reward_random) *100) if reward_benchmark > reward_random and reward_benchmark > my_reward else int(my_reward/reward_benchmark*100)
         print(f'{i}: 随机: {reward_random}, 我的策略: {my_reward}, 最佳回报：{reward_benchmark}, 评分：{score}')
         # 记录
-        rewards = pd.Series([my_reward, reward_benchmark, score], index=header)
-        result = result.append(rewards, ignore_index=True)
-
+        #rewards = pd.Series([my_reward, reward_benchmark, score], index=header)
+        rewards = pd.DataFrame([[my_reward, reward_benchmark, score]], columns=header)
+        #result = result.append(rewards, ignore_index=True)
+        result = pd.concat([result, rewards], ignore_index=True)
         ph.table(result)
         average = result.mean()
         avg_score = average['评分']
