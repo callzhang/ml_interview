@@ -1,5 +1,5 @@
 scikit-learn
-numpy=1.23.3
+numpy==1.23.3
 scipy
 statsmodels
 distfit
