@@ -300,28 +300,29 @@ if st.button('执行我的策略') and myname:
     
     
 
-    # 记录
-    if avg_score > 1.0 and not is_unstable:
+    # 记录 - 始终生成记录和保存分数，以便提交逻辑可以正常工作
+    if not is_unstable:
         record = f'''
 # 新的算法提交（{myname}）
 
 ## 平均成绩
 {avg_score:.3f} ({comment})
 ## 游戏记录
-{result.to_markdown() if not is_unstable else stats_df.to_markdown()}
+{stats_df.to_markdown()}
 ## 策略代码
 ```python
 {my_code}
 ```
 '''+'-'*100
-        ## 生成记录
         st.session_state['record'] = record
         st.session_state['score'] = avg_score
-        st.balloons()
-        print(record)
-        # 下载记录
-        st.success('恭喜你打败基准策略')
-        st.download_button('下载记录', record, file_name='测试记录.md')
+        
+        # 只有在分数 > 1.0 时才显示庆祝和下载按钮
+        if avg_score > 1.0:
+            st.balloons()
+            print(record)
+            st.success('恭喜你打败基准策略')
+            st.download_button('下载记录', record, file_name='测试记录.md')
 
 
 if st.button('提交策略', disabled=is_unstable):
