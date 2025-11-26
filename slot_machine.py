@@ -2,6 +2,7 @@ from rich.logging import RichHandler
 import streamlit as st
 import pandas as pd
 import numpy as np
+from storing import stable_score, check_unstable
 from utils import *
 import logging
 from rich.traceback import install
@@ -33,6 +34,8 @@ if key:
     if datetime.now().date() > expiration:
         st.info(f'{myname}，本账户已截止，请联系HR。')
         st.stop()
+    elif key == 'stardust2017':
+        st.warning(f' **管理员欢迎您！** 您可以访问[表格](https://docs.google.com/spreadsheets/d/1fulK_LYWk2zHMo4qjzdUQNif_2VyzVJFH9Xb-XXzxB0/edit?pli=1&gid=0#gid=0)修改登录，或修改代码[Github](https://github.com/callzhang/ml_interview)')
     else:
         st.info(f'{myname}，欢迎您！您的截止日期为：{expiration}')
 else:
@@ -50,38 +53,27 @@ class Casino:
     def __init__(self, n):
         self.n = n
         max_reward = np.random.randint(5, 200)
-        population = np.random.poisson(max_reward, n) 
-        population -= int(max_reward / 2)
-        population[population < 0] = 0
-        self.population = population
-        self.tried = 0
-        self.history = [] # 记录每次探索的结果
-        self.rewards = [] # 记录探索+穷尽的结果
-
-    def play_new(self):
-        reward = self.population[self.tried]
-        self.tried += 1
-        self.history.append(reward)
-        self.rewards.append(reward)
-        assert len(self.rewards) <= self.n, '你已超过尝试次数，请检查代码！'
-        return reward
+        samples = np.random.poisson(max_reward, n) 
+        samples -= int(max_reward / 2)
+        samples[samples < 0] = 0
+        self.samples = samples
+        self.rewards = [] # 记录所有游戏的结果
         
     def play_machine(self, machine_id):
-        assert machine_id < len(self.history), '指定机器超出已尝试机器范围，请检查代码！'
-        reward = self.history[machine_id]
+        assert 0 <= machine_id < len(self.samples), f'机器ID {machine_id} 超出范围 [0, {len(self.samples)-1}]'
+        assert len(self.rewards) < self.n, '你已超过尝试次数，请检查代码！'
+        reward = self.samples[machine_id]
         self.rewards.append(reward)
-        assert len(self.rewards) <= self.n, '你已超过尝试次数，请检查代码！'
         return reward
     
     def reset(self):
-        self.tried = 0
         self.rewards = []
     
     def get_total_reward(self):
         return sum(self.rewards)
 
     def get_sample(self):
-        return self.population.tolist()
+        return self.samples.tolist()
     sample = property(get_sample)
 
 
@@ -95,30 +87,29 @@ class CasinoPlay:
         self.played = 0
         self.observed = []
 
-    def play(self): # 系统会调用`total_play`次本函数执行策略，每次需要决定`play_new`或`play_machine`
+    def play(self): # 系统会调用`total_play`次本函数执行策略，每次需要调用`play_machine(machine_id)`选择机器
         self.played += 1
-        if np.random.rand() < 0.5 or not self.observed:
-            # 探索一个新的老虎机，调用赌场的play_new()函数，返回一个新的reward
-            reward = self.casino.play_new()
-            self.observed.append(reward)
-        else:
-            # 选择过去的老虎机，可以从历史记录中挑一个，指定machine_id
-            machine_id = np.random.choice(range(len(self.observed)))
-            reward = self.casino.play_machine(machine_id)
-            assert reward == self.observed[machine_id]
+        # 随机选择一个机器ID (0 到 total_play-1)
+        machine_id = np.random.randint(0, self.total_play)
+        reward = self.casino.play_machine(machine_id)
+        self.observed.append(reward)
         return
+
 '''
 st.code(sample_code, language='python')
 CasinoPlay = None
 exec(sample_code)
 
 # 自定义代码
-my_code = '''class MyPlay(CasinoPlay):
-    def play(self):
-        # 请注意，这个函数会被系统调用total_play次
-        # 填入你的策略，使用以下两个方法中的一个
-        # reward = self.casino.play_new() # 调用这个函数可以探索一个新的老虎机
-        # self.casino.play_machine(0) # 调用这个函数可以使用一个已知老虎机
+my_code = '''class MyPlay(CasinoPlay): #这个类名请不要修改，并提供`play`函数供系统调用
+    def play(self): # 请注意，这个函数会被系统调用total_play次
+        # 填入你的策略，使用 play_machine(machine_id) 选择机器, machine_id=[0, total_play-1] 
+        reward = self.casino.play_machine(0) # 选择第0台机器, 你也可以选择其他机器
+        self.observed.append(reward) # 记录收益
+        return
+    
+    def my_function(self): # 你可以自定义一些函数，用于中间步骤，不会被系统调用
+        print('my_function')
         return
 '''
 
@@ -150,16 +141,17 @@ class BestPlay(CasinoPlay):
         super().__init__(casino, total_play)
         self.free_play_times = int(total_play**0.5)
         self.total_reward = 0
+        self.machine_rewards = {}  # 记录每个机器的奖励 {machine_id: reward}
 
     def fit_dist(self):
         dist = distfit(distr=['gamma', 'lognorm', 'beta', 't', 'chi'], smooth=10)
-        dist.fit_transform(np.array(self.observed), verbose=1)
+        dist.fit_transform(np.array(self.observed))
         score = dist.model['score'] / len(self.observed)
         return dist, score
 
     def play(self):
         self.played += 1
-        # 先玩10次
+        # 先探索 free_play_times 次
         if self.played <= self.free_play_times:
             self.explore()
             
@@ -189,47 +181,58 @@ class BestPlay(CasinoPlay):
         return
 
     def explore(self):
-        reward = self.casino.play_new()
+        # 探索：随机选择一个未尝试过的机器
+        available_machines = list(range(self.total_play))
+        untried = [m for m in available_machines if m not in self.machine_rewards]
+        if untried:
+            machine_id = np.random.choice(untried)
+        else:
+            # 如果所有机器都尝试过，随机选择一个
+            machine_id = np.random.choice(available_machines)
+        
+        reward = self.casino.play_machine(machine_id)
+        self.machine_rewards[machine_id] = reward
         self.observed.append(reward)
         self.total_reward += reward
         # print(f'Step {self.played}: explore, reward: {reward}')
         return reward
 
     def exploit(self):
-        self.total_reward += self.max
-        max_idx = self.observed.index(self.max)
-        reward = self.casino.play_machine(max_idx)
+        # 利用：选择已知最好的机器
+        best_machine_id = max(self.machine_rewards, key=self.machine_rewards.get)
+        reward = self.casino.play_machine(best_machine_id)
+        self.total_reward += reward
         assert reward == self.max, 'exploit error!'
-        return self.max
+        return reward
     
     def get_max(self):
-        return max(self.observed)
+        return max(self.observed) if self.observed else 0
 
     max = property(get_max)
         
-score_result = {
-    '远低于平均的小白': range(int(-1e5),92),
-    '新手请继续努力': range(92, 95),
-    '有点感觉了': range(95, 98),
-    '有经验的玩家': range(98,100),
-    '赌场一霸': range(100, int(1e5)),
+score_ranking = {
+    '远低于平均的小白': (-float('inf'), 0.92),
+    '新手请继续努力': (0.92, 0.95),
+    '有点感觉了': (0.95, 0.98),
+    '有经验的玩家，请继续努力': (0.98, 1.0),
+    '赌场一霸': (1.0, float('inf')),
 }
 
-stable = None
+is_unstable = False
 if st.button('执行我的策略') and myname:
     # 进度
     bar = st.progress(0)
-    ph = st.empty()
+    result_container = st.empty()
+    stats_container = st.empty()
     header = ['我的策略', '基准策略', '评分']
     result = pd.DataFrame(columns=header)
-    ph.table(result)
-    score_best = 0
+    result_container.table(result)
     for i in range(100):
         bar.progress(i+1)
         total_play = TOTAL_PlAY + i*10
         casino = Casino(total_play)
         play_random = CasinoPlay(casino, total_play)
-        play2 = MyPlay(casino, total_play)
+        play_mine = MyPlay(casino, total_play)
         bestplay = BestPlay(casino, total_play)
         # 测试随机策略
         for j in range(total_play):
@@ -240,7 +243,7 @@ if st.button('执行我的策略') and myname:
         # 测试我的策略
         casino.reset()
         for j in range(total_play):
-            play2.play()
+            play_mine.play()
         my_reward = casino.get_total_reward()
         # print(f'我的策略的回报: {my_reward}')
         
@@ -252,61 +255,68 @@ if st.button('执行我的策略') and myname:
         # print(f'最佳回报：{reward_benchmark}')
         
         # 评分
-        score = int((my_reward - reward_random) / (reward_benchmark - reward_random) *100) if reward_benchmark > reward_random and reward_benchmark > my_reward else int(my_reward/reward_benchmark*100)
-        print(f'{i}: 随机: {reward_random}, 我的策略: {my_reward}, 最佳回报：{reward_benchmark}, 评分：{score}')
+        # score = (my_reward - reward_random) / (reward_benchmark - reward_random) if reward_benchmark > reward_random and reward_benchmark > my_reward else my_reward / reward_benchmark
+        score = stable_score(my_reward, reward_random, reward_benchmark)
+        print(f'{i}: 随机: {reward_random}, 我的策略: {my_reward}, 最佳回报：{reward_benchmark}, 评分：{score:.3f}')
         # 记录
         rewards = pd.Series([my_reward, reward_benchmark, score], index=header)
-        result = result.append(rewards, ignore_index=True)
+        result = pd.concat([result, rewards.to_frame().T], ignore_index=True)
 
-        ph.table(result)
-        average = result.mean()
-        avg_score = average['评分']
+        result_container.table(result)
+        
+        # Calculate and display statistics
+        scores = result['评分']
+        my_rewards = result['我的策略']
+        best_rewards = result['基准策略']
+        
         # 测试结果稳定性
-        if i >= 9:
-            try:
-                scores = result['评分']
-                dist = distfit(distr=['norm'], smooth=10)
-                dist.fit_transform(scores, verbose=1)
-                mean = dist.model['params'][0]
-                scale = dist.model['params'][1]
-                print(dist.model)
-            except:
-                scale, mean = 0, scores.mean()
-                
-            if scale/mean > 0.5 or (scores.min()<90 and scores.mean()>95):
-                st.warning(f'结果不稳定，请优化算法')
-                print(f'scale/mean: {scale/mean}, min: {scores.min()}, mean: {scores.mean()}')
+        is_unstable = check_unstable(scores)
+        if is_unstable:
+            st.warning(f'结果不稳定，请优化算法')
+            break
+    
+    avg_score = result.mean()['评分']
+    stats = [
+        ('Mean (平均)', f"{scores.mean():.4f}", '要求均值大于0.95或std小于0.25'),
+        ('Median (中位数)', f"{scores.median():.4f}", '要求中位数大于0.9'),
+        ('Std Dev (标准差)', f"{scores.std():.4f}", '要求标准差小于0.5'),
+        ('Min (最小值)', f"{scores.min():.4f}", '要求最小值大于0.1'),
+        ('Max (最大值)', f"{scores.max():.4f}", ''),
+        ('10% (10%分位数)', f"{scores.quantile(0.1):.4f}", '要求10%分位数大于0.5'),
+        ('Win Rate (胜率)', f"{(my_rewards > best_rewards).sum() / len(result) * 100:.2f}%", ''),
+    ]
+    stats_df = pd.DataFrame(stats, columns=['统计指标', '数值', '备注'])
+    stats_container.table(stats_df)
+    if not is_unstable:
+        comment = None
+        for k, v in score_ranking.items():
+            if v[0] <= avg_score < v[1]:
+                comment = k
                 break
-        if avg_score < 98 and i >= 9:
-            break
-    bar.progress(100)
-    for k, v in score_result.items():
-        if int(avg_score) in v:
-            comment = k
-            break
-        comment = f'{avg_score}'
-    st.info(f'你的成绩是：{comment}')
-    st.session_state['comment'] = comment
+        if comment is None:
+            comment = f'{avg_score:.3f}'
+        st.info(f'你的成绩是：{comment}')
+        st.session_state['comment'] = comment
     
     
-    ## 生成记录
-    record = f'''
+
+    # 记录
+    if avg_score > 1.0 and not is_unstable:
+        record = f'''
 # 新的算法提交（{myname}）
 
 ## 平均成绩
-{average.to_markdown()}
+{avg_score:.3f} ({comment})
 ## 游戏记录
-{result.to_markdown()}
+{result.to_markdown() if not is_unstable else stats_df.to_markdown()}
 ## 策略代码
 ```python
 {my_code}
 ```
 '''+'-'*100
-    st.session_state['record'] = record
-    st.session_state['score'] = avg_score
-
-    # 记录
-    if average['评分'] > 100 and stable:
+        ## 生成记录
+        st.session_state['record'] = record
+        st.session_state['score'] = avg_score
         st.balloons()
         print(record)
         # 下载记录
@@ -314,10 +324,10 @@ if st.button('执行我的策略') and myname:
         st.download_button('下载记录', record, file_name='测试记录.md')
 
 
-if st.button('提交策略'):
+if st.button('提交策略', disabled=is_unstable):
     if 'record' not in st.session_state:
         st.error('请先执行策略')
-    elif st.session_state.score < 95:
+    elif st.session_state.score < 0.95:
         st.warning('请先优化策略再提交')
         upload_str = f"【{st.session_state['myname']}】尝试提交，但是成绩不够好。\n其成绩为{st.session_state['score']}({st.session_state['comment']})"
         result = upload_record(st.session_state['myname'], upload_str)

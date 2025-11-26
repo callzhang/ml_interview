@@ -1,0 +1,4 @@
+[client]
+# Hide error details and tracebacks in the UI
+showErrorDetails = false
+
